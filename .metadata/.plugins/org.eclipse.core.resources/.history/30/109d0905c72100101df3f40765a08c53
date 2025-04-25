@@ -1,0 +1,13 @@
+package toyota.example.toyota_project.MainApp.DataCollection.abstractDC;
+
+import toyota.example.toyota_project.MainApp.DataCollection.models.Rate;
+import toyota.example.toyota_project.MainApp.DataCollection.models.RateFields;
+import toyota.example.toyota_project.MainApp.DataCollection.models.RateStatus;
+
+public interface IDataCollectorCallback {
+	void onConnect(String platformName, Boolean status);
+    void onDisconnect(String platformName, Boolean status);
+    void onRateAvailable(String platformName, String rateName, Rate rate);
+    void onRateUpdate(String platformName, String rateName, RateFields rateFields);
+    void onRateStatus(String platformName, String rateName, RateStatus rateStatus);
+}

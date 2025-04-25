@@ -1,0 +1,9 @@
+package toyota.example.toyota_project.MainApp.DataCollection.abstractDC;
+
+public interface IDataCollector {
+	 boolean connect(String platformName, String userid, String password);
+	 boolean disconnect(String platformName, String userid, String password);
+	 boolean subscribe(String platformName, String rateName);
+	 boolean unsubscribe(String platformName, String rateName);
+	 void setCallback(IDataCollectorCallback callback);
+}

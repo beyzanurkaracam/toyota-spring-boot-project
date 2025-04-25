@@ -1,0 +1,83 @@
+package toyota.example.toyota_project.MainApp.DataCollection.concreteDC;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.web.client.RestTemplate;
+
+import toyota.example.toyota_project.Helpers.Logging.LoggingHelper;
+import toyota.example.toyota_project.MainApp.DataCollection.abstractDC.IDataCollector;
+import toyota.example.toyota_project.MainApp.DataCollection.abstractDC.IDataCollectorCallback;
+import toyota.example.toyota_project.MainApp.DataCollection.models.Rate;
+
+public class RESTDataCollector implements IDataCollector {
+    private final RestTemplate restTemplate;
+    private IDataCollectorCallback callback;
+    private String baseUrl;
+    private ScheduledExecutorService scheduler;
+    private boolean isConnected;
+
+    public RESTDataCollector() {
+        this.restTemplate = new RestTemplate();
+        this.scheduler = Executors.newScheduledThreadPool(1);
+    }
+
+    @Override
+    public boolean connect(String platformName, String userid, String password) {
+        try {
+            this.baseUrl = "http://localhost:8080/api/rates/";
+            isConnected = true;
+            callback.onConnect(platformName, true);
+            return true;
+        } catch (Exception e) {
+            LoggingHelper.logError("REST connection failed for platform: " + platformName, e);
+            callback.onConnect(platformName, false);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean disconnect(String platformName, String userid, String password) {
+        try {
+            isConnected = false;
+            scheduler.shutdown();
+            callback.onDisconnect(platformName, true);
+            return true;
+        } catch (Exception e) {
+            LoggingHelper.logError("REST disconnection failed for platform: " + platformName, e);
+            callback.onDisconnect(platformName, false);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean subscribe(String platformName, String rateName) {
+        if (!isConnected) return false;
+
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                String url = baseUrl + rateName;
+                Rate rate = restTemplate.getForObject(url, Rate.class);
+                if (rate != null) {
+                    callback.onRateAvailable(platformName, rateName, rate);
+                }
+            } catch (Exception e) {
+                LoggingHelper.logError("Error fetching rate: " + rateName, e);
+            }
+        }, 0, 1, TimeUnit.SECONDS);
+
+        return true;
+    }
+
+    @Override
+    public boolean unsubscribe(String platformName, String rateName) {
+        // Implementation for unsubscribe
+        return true;
+    }
+
+    @Override
+    public void setCallback(IDataCollectorCallback callback) {
+        this.callback = callback;
+    }
+}

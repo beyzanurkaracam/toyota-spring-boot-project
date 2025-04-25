@@ -1,0 +1,143 @@
+package toyota.example.toyota_project.MainApp.DataCollection.concreteDC;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.time.LocalDateTime;
+
+import toyota.example.toyota_project.Helpers.Logging.LoggingHelper;
+import toyota.example.toyota_project.MainApp.DataCollection.abstractDC.IDataCollector;
+import toyota.example.toyota_project.MainApp.DataCollection.abstractDC.IDataCollectorCallback;
+import toyota.example.toyota_project.MainApp.DataCollection.models.Rate;
+import toyota.example.toyota_project.MainApp.DataCollection.models.RateFields;
+import toyota.example.toyota_project.MainApp.DataCollection.models.RateStatus;
+
+public class TCPDataCollector implements IDataCollector {
+    private Socket socket;
+    private PrintWriter out;
+    private BufferedReader in;
+    private IDataCollectorCallback callback;
+    private String platformName;
+    private volatile boolean isRunning;
+    private Thread listenerThread;
+
+    @Override
+    public boolean connect(String platformName, String userid, String password) {
+        try {
+            this.platformName = platformName;
+            socket = new Socket("localhost", 8081);
+            out = new PrintWriter(socket.getOutputStream(), true);
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            
+            startListener();
+            callback.onConnect(platformName, true);
+            return true;
+        } catch (IOException e) {
+            LoggingHelper.logError("Connection failed for platform: " + platformName, e);
+            callback.onConnect(platformName, false);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean disconnect(String platformName, String userid, String password) {
+        try {
+            isRunning = false;
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+            callback.onDisconnect(platformName, true);
+            return true;
+        } catch (IOException e) {
+            LoggingHelper.logError("Disconnection failed for platform: " + platformName, e);
+            callback.onDisconnect(platformName, false);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean subscribe(String platformName, String rateName) {
+        if (out != null) {
+            out.println("subscribe|" + rateName);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean unsubscribe(String platformName, String rateName) {
+        if (out != null) {
+            out.println("unsubscribe|" + rateName);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void setCallback(IDataCollectorCallback callback) {
+        this.callback = callback;
+    }
+
+    private void startListener() {
+        isRunning = true;
+        listenerThread = new Thread(() -> {
+            try {
+                String line;
+                while (isRunning && (line = in.readLine()) != null) {
+                    processMessage(line);
+                }
+            } catch (IOException e) {
+                if (isRunning) {
+                    LoggingHelper.logError("Error in listener thread", e);
+                    callback.onDisconnect(platformName, false);
+                }
+            }
+        });
+        listenerThread.start();
+    }
+
+    private void processMessage(String message) {
+        try {
+            // Handle error messages
+            if (message.startsWith("ERROR|")) {
+                String errorMessage = message.substring(6);
+                callback.onRateStatus(platformName, "ERROR", new RateStatus("ERROR", errorMessage));
+                return;
+            }
+
+            // Handle subscription confirmation
+            if (message.startsWith("Subscribed to ")) {
+                String rateName = message.substring(13);
+                callback.onRateStatus(platformName, rateName, new RateStatus("SUBSCRIBED", "Successfully subscribed"));
+                return;
+            }
+
+            // Handle rate data
+            // Format: PF1_USDTRY|22:number:34.40135543466431|25:number:35.40135543466431|5:timestamp:2024-12-15T11:31:34.509
+            String[] parts = message.split("\\|");
+            if (parts.length < 4) {
+                LoggingHelper.logError("Invalid message format: " + message);
+                return;
+            }
+
+            String rateName = parts[0];
+            double bid = Double.parseDouble(parts[1].split(":")[2]);
+            double ask = Double.parseDouble(parts[2].split(":")[2]);
+            LocalDateTime timestamp = LocalDateTime.parse(parts[3].split(":")[2]);
+
+            Rate rate = new Rate(rateName, bid, ask, timestamp);
+            
+            // Check if this is first time data or update
+            RateFields rateFields = new RateFields(bid, ask, timestamp);
+            callback.onRateUpdate(platformName, rateName, rateFields);
+
+        } catch (Exception e) {
+            LoggingHelper.logError("Error processing message: " + message, e);
+            callback.onRateStatus(platformName, "ERROR", new RateStatus("ERROR", "Failed to process message"));
+        }
+    }
+
+	
+}

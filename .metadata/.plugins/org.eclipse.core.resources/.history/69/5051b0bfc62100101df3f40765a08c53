@@ -1,0 +1,46 @@
+package toyota.example.toyota_project.UnitTest;
+
+import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+
+import toyota.example.toyota_project.Simulation.REST.ForexRateSimulator;
+import toyota.example.toyota_project.Simulation.REST.ForexRateSimulator.MarketProperties;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import static org.junit.jupiter.api.Assertions.*;
+class ForexRateSimulatorTest {
+    private ForexRateSimulator simulator;
+
+    @BeforeEach
+    void setUp() {
+        simulator = new ForexRateSimulator();
+        simulator.initialize();
+    }
+
+    @Test
+    void testInitializeRate() {
+        double initialRate = 34.50;
+        simulator.initializeRate("PF2_USDTRY", initialRate);
+        
+        MarketProperties props = simulator.getMarketProperties("PF2_USDTRY");
+        assertNotNull(props);
+        assertEquals(0.002, props.getBaseVolatility());
+    }
+
+    @Test
+    void testCalculateNextRate() {
+        simulator.initializeRate("PF2_USDTRY", 34.50);
+        double newRate = simulator.calculateNextRate("PF2_USDTRY", 34.50);
+        
+        assertTrue(newRate > 0);
+        assertTrue(Math.abs(newRate - 34.50) < 1.0); // Rate shouldn't change too drastically
+    }
+
+    @Test
+    void testMarketHours() {
+        boolean isWithinHours = simulator.isWithinMarketHours();
+        // This will depend on the current time
+        assertNotNull(isWithinHours);
+    }
+}
