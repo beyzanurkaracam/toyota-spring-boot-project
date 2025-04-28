@@ -4,6 +4,7 @@ package toyota.example.toyota_project.Simulation.REST.Controllers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,7 @@ import toyota.example.toyota_project.Simulation.TCP.TCPServerSimulation;
 
 @RestController
 @RequestMapping("/api/rates")
+@Profile("rest")
 public class RateController {
     private static final Logger logger = LogManager.getLogger(RateController.class);
     

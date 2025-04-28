@@ -1,0 +1,146 @@
+Uygulama farklı platformlardan çekilecek verileri ayıklayıp, hesaplayacak hesaplanmış verileri ve hesap sırasında kullanılan verileri DB ye aktaracak aynı zamanda da loglama yapacaktır.
+
+Ana Uygulama için Beklentiler:
+
+•	Platformlardan verileri çekmek için kullanılacak sınıflar bağımsız threadler içinde çalışmalıdır. Bu  sınıflar bir interface i implement etmeli ya da bir abstract sınıftan türemelidir. Olması beklenen minimum methodlar aşağıdaki gibidir.
+
+
+// Bağlantıyı gerçekleştirmek için olan metod
+connect(String platformName, String userid, String password)
+
+// Bağlantıyı kesmek için olan metod
+disConnect(String platformName, String userid, String password)
+
+// Bir rate e subscribe olmak için çağrılacak metod
+subscribe(String platformName, String rateName)
+
+// Bir rate e subscription ı bitirmek için çağrılacak metod
+unSubscribe(String platformName, String rateName)
+
+
+
+
+
+
+
+
+
+•	Kontrol edebilmek için koordinatör sınıfı oluşturulmalıdır. Koordinatör sınıf aşağıda örnek olarak paylaşılan callback metodlarını içeren bir interface’i implement etmeli ya da abstract sınıftan türetilmelidir.
+
+// Bağlantı gerçekleştiğinde çalışacak callback
+onConnect(String platformName, Boolean status)
+
+// Bağlantı koptuğunda çalışacak callback
+onDisConnect(String platformName, Boolean status)
+
+// istenen veri ilk defa geldiğinde
+onRateAvailable(String platformName, String rateName, Rate rate)
+
+// istenen verinin sonraki güncellemeleri
+onRateUpdate(String platformName, String rateName, RateFields rateFields)
+
+// istenen verinin durumu ile ilgili bilgilendime
+onRateStatus(String platformName, String rateName, RateStatus rateStatus)
+
+
+•	Veri toplama uygulamasının ana sınıfı Koordinatör sınıf olmalıdır. Bu sınıf içerisinde veri toplama sınıflarını ayağa kaldırma, kapatma, bu sınıflardan gelen verileri işleme, hesaplama, loglama işlemleri yapılabilmelidir.
+
+•	Veri toplama sınıfları Koordinator sınıfında implement edilmiş callback metodlarını çağırarak koordinator sınıfı ile haberleşmelidir, bu amaçla koordinator sınıfı veri toplayan sınıfları ayağa kaldırırken onlara bir isim vermeli ve callback’ler için kendi referansını geçirmelidir.
+
+
+•	Veri toplama sınıflarından gelen veriler ortak bir formata çevrilmelidir.
+
+•	Formatlanan veriler Koordinatör Uygulaması tarafından cache de saklanmalıdır. Bu noktada Cache basit bir map uyarlaması olarak geliştirilebilir. Ancak harici olarak Hazelcast ya da Redis kullanımı artı puan olarak değerlendirilecektir.
+
+•	Koordinator sınıfı veri toplayan sınıfları bir tanım dosyası yardımı ile okumalı, bu sınıfların neler olduğunu kodlama sırasında bilmemeli sadece interface veya abstract class tan haberdar olmalıdır.
+Bu sayede ana yapı bozulmadan ileride farklı implementasyonlar eklemek mümkün olacaktır. Konfigürasyon dosyasında bu sınıfların  implementation classlarının ismi yer almalı ve runtime da dinamik yüklenmelidirler.
+
+•	Runtime da dinamik yüklenen bu sınıflar kendi konfigürasyon dosyalarından yapacağı bağlantı ile ilgili bilgileri almalıdır, hangi rate lere subscription yapılacağı ana koordinator uygulaması tarafından yönetilecektir.
+
+•	Koordinasyon uygulamasındaki onRateAvailable ve onRateUpdate callback metodları tetiklendiğinde ortak bir formata gelmiş veriler Kafka cluster a gönderilmelidir.
+
+•	Ham veriler örneklerle açıklanan hesaplama metodları ile hesaplanmalı ve calculated data ya ulaşılmalıdır.
+
+•	Hesaplanan kurlar ile ilgili hesaplama yöntemi dinamik olmalıdır  hesaplama anında nasıl bir formül kullanılacağı ve bu formülün hangi yöntem ile derleneceği konfigürasyonda belirtilmelidir. 
+
+•	Hesaplama yöntemi için harici bir java sınıf kullanılabileceği gibi, JVM scripting dillerinden Javascript veya Groovy kullanılabilir. Her birinin ayrı kullanımı artı puan olacaktır.
+
+
+
+
+
+
+Örnek Senaryo :
+
+
+Platform 1 Verileri:
+		Örnek Veri
+Sembol	Açıklama	Alış (bid)	Satış(ask)	Zaman (timestamp)
+PF1_USDTRY	ABD Doları /Türk lirası verisi	33.60	35.90	2024-12-16T16:07:15.504
+PF1_EURUSD	Euro / ABD Doları verisi	1.0220	1.0450	2024-12-16T16:07:25.504
+PF1_GBPUSD	Sterlin / ABD Doları verisi	1.2510	1.2645	2024-12-16T16:07:27.504
+	
+
+Platform 2 Verileri:
+		Örnek Veri
+Sembol	Açıklama	Alış (bid)	Satış(ask)	Zaman (timestamp)
+PF2_USDTRY	ABD Doları /Türk lirası verisi	34.80	35.10	2024-12-16T16:07:16.504
+PF2_EURUSD	Euro / ABD Doları verisi	1.0370	1.0410	2024-12-16T16:07:26.504
+PF2_GBPUSD	Sterlin / ABD Doları verisi	1.2590	1.2615	2024-12-16T16:07:28.504
+	
+
+Tablolarda bulunan USD/TRY, EUR/USD, GBP/USD verileri ham data kabul edilerek, USD/TRY, EUR/TRY, GBP/TRY oranları hesaplanacaktır.
+
+USD.TRY platformlardan direkt erişilebilir durumda iken EUR.TRY ya da GBP.TRY oranlarına platformlardan direkt erişilemez, belli hesaplar ile türetilmeleri gerekir.
+
+Tablolarda Sembol kolonu altında isimler örnek olarak standardize edilmiştir. 
+
+USD/TRY hesabı , 
+
+USD.TRY oranı BID ve ASK değerleri için iki platformun ortalaması alınmaktadır.
+
+USDTRY.bid = (PF1_USDTRY.bid+PF2_USDTRY.bid)/2
+USDTRY.ask = (PF1_USDTRY.ask+PF2_USDTRY.ask)/2
+
+(33.6+34.8)/2= 34.2
+(35.9+35.1)/2= 35.5
+
+EUR/TRY hesabı ,
+
+EUR.TRY oranı BID ve ASK değerleri için EUR.USD (iki platform ortalaması) ve USDmid oranı çarpılmalıdır.
+
+usdmid = ((PF1_USDTRY.bid+PF2_USDTRY.bid)/2 +(PF1_USDTRY.ask+PF2_USDTRY.ask)/2 )/2
+
+EURTRY.bid =usdmid x ((PF1_EURUSD.bid+PF2_EURUSD.bid)/2)
+EURTRY.ask =usdmid x ((PF1_EURUSD.ask+PF2_EURUSD.ask)/2)
+
+((33.6+34.8)/2+(35.9+35.1)/2)/2=34.85
+34.58 x (1.022+1.037)/2 =35.878075
+34.58 x (1.045+1.041)/2 =36.34855
+
+
+
+
+
+GBP/TRY hesabı ,
+
+GBP.TRY oranı BID ve ASK değerleri için GBP.USD (iki platform ortalaması) ve USDmid oranı çarpılmalıdır.
+
+
+usdmid = ((PF1_USDTRY.bid+PF2_USDTRY.bid)/2 +(PF1_USDTRY.ask+PF2_USDTRY.ask)/2 )/2
+
+GBPTRY.bid =usdmid x ((PF1_GBPUSD.bid+PF2_GBPUSD.bid)/2)
+GBPTRY.ask =usdmid x ((PF1_GBPUSD.ask+PF2_GBPUSD.ask)/2)
+
+((33.6+34.8)/2+(35.9+35.1)/2)/2=34.85
+
+34.58 x (1.251+1.259)/2 =43.73675
+34.58 x (1.2645+1.2615)/2 =44.01555
+
+
+
+•	Hesaplanan bu veriler için hesaplama formülleri uygulama dışından dinamik olarak verilecektir, bu noktada java sınıfı, javscript veya groovy tercih edilebilir.
+
+
+•	Platformlardan sağlanan veriler güncellendiğinde kendisinin hangi hesaplamalarda kullanıldığını bilmeli ve ona göre ilgili verinin hesaplama metodunu çağırabilmelidir. 
+

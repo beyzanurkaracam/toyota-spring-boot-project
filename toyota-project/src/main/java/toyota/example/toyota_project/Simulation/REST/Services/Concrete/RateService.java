@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -15,7 +16,7 @@ import toyota.example.toyota_project.Helpers.Logging.Exceptions.Rest.RateProcess
 import toyota.example.toyota_project.Simulation.REST.ForexRateSimulator;
 import toyota.example.toyota_project.Simulation.REST.Responses.RateResponse;
 import toyota.example.toyota_project.Simulation.REST.Services.Abstract.AbstractRateService;
-
+@Profile("rest")
 @Service
 public class RateService extends AbstractRateService {
 

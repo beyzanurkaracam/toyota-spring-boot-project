@@ -1,9 +1,11 @@
 package toyota.example.toyota_project.Simulation.REST.Services.Abstract;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.annotation.Profile;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
+@Profile("rest")
 public abstract class AbstractRateService implements IRateService {
     protected static final Logger logger = LogManager.getLogger(AbstractRateService.class);
     
