@@ -99,6 +99,19 @@
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
+       <!-- Spring Data Redis -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+
+<!-- Redis Client (Lettuce) -->
+<dependency>
+    <groupId>io.lettuce</groupId>
+    <artifactId>lettuce-core</artifactId>
+    <version>6.2.4.RELEASE</version>
+</dependency>
+
     </dependencies>
 
     <build>
