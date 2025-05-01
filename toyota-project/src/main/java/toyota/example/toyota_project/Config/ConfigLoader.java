@@ -1,14 +1,19 @@
 package toyota.example.toyota_project.Config;
-
+import toyota.example.toyota_project.Helpers.Logging.LoggingHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import toyota.example.toyota_project.Helpers.*;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import toyota.example.toyota_project.Helpers.Logging.LoggingHelper;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,10 +39,10 @@ public class ConfigLoader {
         try (FileInputStream input = new FileInputStream(configFilePath)) {
             properties.load(input);
 
-            // Sembol ve fiyatları yükle
+           
             for (String key : properties.stringPropertyNames()) {
-                if (key.startsWith("rates.")) { // Sadece rates ile başlayan anahtarları yükle
-                    String symbol = key.substring(6); // "rates." kısmını çıkar
+                if (key.startsWith("rates.")) { 
+                    String symbol = key.substring(6); 
                     double rate = Double.parseDouble(properties.getProperty(key));
                     rates.put(symbol, rate);
                     LoggingHelper.logInfo("Loaded rate for {}: {}", symbol, rate);
@@ -55,12 +60,12 @@ public class ConfigLoader {
 
         try (FileInputStream input = new FileInputStream(configFilePath)) {
             properties.load(input);
-            int port = Integer.parseInt(properties.getProperty("server.port", "8081")); // Varsayılan port: 8081
+            int port = Integer.parseInt(properties.getProperty("server.port", "8081")); 
             LoggingHelper.logInfo("Loaded server port: {}", port);
             return port;
         } catch (IOException e) {
             LoggingHelper.logError("Error loading port from config file", e);
-            return 8081; // Hata durumunda varsayılan port
+            return 8081; 
         }
     }
     public static List<String> getSubscriptionsForPlatform(String platformName) {
@@ -71,7 +76,7 @@ public class ConfigLoader {
             
             return Optional.ofNullable(props.getProperty("subscriptions"))
                     .map((String s) -> Arrays.stream(s.split(","))
-                                             .map(String::trim) // her ihtimale karşı trim
+                                             .map(String::trim) 
                                              .filter(rate -> !rate.isEmpty())
                                              .collect(Collectors.toList()))
                     .orElse(Collections.emptyList());
@@ -79,11 +84,11 @@ public class ConfigLoader {
             
         } catch (RuntimeException e) {
             logger.error("Failed to load subscriptions for platform: {}", platformName, e);
-            return Collections.emptyList(); // Safe fallback
+            return Collections.emptyList(); 
         }
     }
 
-    // Var olan loadProperties() metodunuz (örnek)
+    
     public static Properties loadProperties(String configFile) {
         Properties props = new Properties();
         try (InputStream input = ConfigLoader.class.getClassLoader().getResourceAsStream(configFile)) {
@@ -107,11 +112,11 @@ public class ConfigLoader {
         try (FileInputStream input = new FileInputStream(configFilePath)) {
             props.load(input);
             
-            // Toplam platform sayısını oku
+            
             int collectorCount = Integer.parseInt(props.getProperty("collectors.count", "0"));
             LoggingHelper.logInfo("Loading {} collector configurations", collectorCount);
             
-            // Her bir platform için konfigürasyonları yükle
+            
             for (int i = 1; i <= collectorCount; i++) {
                 String prefix = "collector." + i + ".";
                 
@@ -120,11 +125,11 @@ public class ConfigLoader {
                 config.setClassName(getRequiredProperty(props, prefix + "className", configFilePath));
                 config.setConfigFile(props.getProperty(prefix + "configFile"));
                 
-                // Opsiyonel alanlar
+                
                 config.setUserName(props.getProperty(prefix + "userName"));
                 config.setPassword(props.getProperty(prefix + "password"));
                 
-                // Rate'leri listeye çevir
+                
                 String rateNames = props.getProperty(prefix + "rateNames", "");
                 config.setRateNames(Arrays.asList(rateNames.split(",")));
                 
@@ -142,7 +147,17 @@ public class ConfigLoader {
         
         return configs;
     }
-
+    public static List<String> getDependentSymbols(String baseSymbol) {
+        
+        try {
+            String json = Files.readString(Path.of("src/main/resources/calculation_dependencies.json"));
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, List<String>> dependencies = mapper.readValue(json, new TypeReference<>() {});
+            return dependencies.getOrDefault(baseSymbol, new ArrayList<>());
+        } catch (IOException e) {
+            throw new RuntimeException("Bağımlılık konfigürasyonu yüklenemedi", e);
+        }
+    }
     private static String getRequiredProperty(Properties props, String key, String configPath) {
         String value = props.getProperty(key);
         if (value == null || value.trim().isEmpty()) {

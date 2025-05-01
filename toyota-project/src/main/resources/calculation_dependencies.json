@@ -1,0 +1,5 @@
+{
+  "USDTRY": ["EURTRY", "GBPTRY"],
+  "EURUSD": ["EURTRY"],
+  "GBPUSD": ["GBPTRY"]
+}

@@ -3,12 +3,12 @@ package toyota.example.toyota_project.Simulation.TCP;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import toyota.example.toyota_project.Simulation.REST.ForexRateSimulator;
-import toyota.example.toyota_project.Helpers.*;
+
 import toyota.example.toyota_project.Helpers.Logging.LoggingHelper;
 import toyota.example.toyota_project.Helpers.Logging.Exceptions.Tcp.ConnectionException;
 import toyota.example.toyota_project.Helpers.Logging.Exceptions.Tcp.SubscriptionException;
 import toyota.example.toyota_project.Helpers.Logging.Exceptions.Tcp.TCPServerException;
-
+import toyota.example.toyota_project.Helpers.Logging.LoggingHelper;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -41,7 +41,7 @@ public class TCPServerSimulation {
     public static void main(String[] args) {
         try {
             initialize();
-            int port = Integer.parseInt(config.getProperty("port", "8081"));
+            int port = Integer.parseInt(config.getProperty("port", "8082"));
             startServer(port);
         } catch (Exception e) {
             LoggingHelper.logError("Server initialization failed", e);

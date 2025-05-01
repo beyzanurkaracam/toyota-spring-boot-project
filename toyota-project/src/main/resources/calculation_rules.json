@@ -1,0 +1,14 @@
+{
+  "USDTRY": {
+    "formulaType": "JAVA",
+    "formula": "toyota.example.calculations.USDTRYFormula"
+  },
+  "EURTRY": {
+    "formulaType": "GROOVY",
+    "formula": "usdmid = ((PF1_USDTRY_bid + PF2_USDTRY_bid)/2 + (PF1_USDTRY_ask + PF2_USDTRY_ask)/2)/2; return usdmid * ((PF1_EURUSD_bid + PF2_EURUSD_bid)/2)"
+  },
+  "GBPTRY": {
+    "formulaType": "JAVASCRIPT",
+    "formula": "const usdmid = ((PF1_USDTRY_bid + PF2_USDTRY_bid)/2 + (PF1_USDTRY_ask + PF2_USDTRY_ask)/2)/2; return usdmid * ((PF1_GBPUSD_bid + PF2_GBPUSD_bid)/2);"
+  }
+}

@@ -15,7 +15,7 @@ public class RedisConfig {
         RedisTemplate<String, RateFields> template = new RedisTemplate<>();
         template.setConnectionFactory(factory);
         
-        // JSON Serializer
+       
         Jackson2JsonRedisSerializer<RateFields> serializer = 
             new Jackson2JsonRedisSerializer<>(RateFields.class);
         

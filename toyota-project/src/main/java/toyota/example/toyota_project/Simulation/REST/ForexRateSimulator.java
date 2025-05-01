@@ -19,7 +19,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import toyota.example.toyota_project.Simulation.REST.Controllers.RateController;
 
-//ForexRateSimulator.java
+
 @Component
 public class ForexRateSimulator {
 
@@ -143,10 +143,10 @@ public class ForexRateSimulator {
      LocalTime now = LocalTime.now(props.getTimeZone());
      
      if (now.isBefore(marketStart) || now.isAfter(marketEnd)) {
-         return 0.5; // Düşük aktivite
+         return 0.5; 
      }
 
-     // Piyasa açılış ve kapanışında yüksek aktivite
+   
      if (now.isBefore(marketStart.plusHours(1)) || 
          now.isAfter(marketEnd.minusHours(1))) {
          return 1.5;
