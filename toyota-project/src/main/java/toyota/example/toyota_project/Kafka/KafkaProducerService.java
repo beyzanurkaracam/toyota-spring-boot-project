@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 import toyota.example.toyota_project.Entities.Rate;
 
-@Service
+//@Service
 public class KafkaProducerService {
 
     private final KafkaTemplate<String, String> kafkaTemplate;

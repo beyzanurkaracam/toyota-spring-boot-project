@@ -5,10 +5,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.time.Instant;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
@@ -42,108 +44,161 @@ public class TcpDataCollector implements DataCollector {
 	        // Default constructor
 	    }
 	    
-	@Override
-	public void connect(String platformName, String userid, String password) {
-		this.platformName=platformName;
-		this.executor=executor;
-		
-		executor.submit(()->{
-			int attempt=0;
-			boolean success=false;
-			while(attempt<maxAttempts && !isConnected.get()) {
-				attempt++;
-				logger.info("Connection attempt {}/{} to {}:{}", 
-                        attempt, maxAttempts, host, port);
-				try {
-					
-					socket= new Socket();
-					socket.connect(new java.net.InetSocketAddress(host,port),connectionTimeout);
-					isConnected.set(true);
-					success=true;
-                    logger.info("Connected to {}:{}", host, port);
-break;
-
-					
-					
-				}catch(IOException e) {
-					logger.warn("Connection attempt {} failed: {}", attempt, e.getMessage());
-
-                    try {
-                        Thread.sleep(reconnectInterval);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                    }
-				}
-			}
-			 if (callback != null) {
+	    @Override
+	    public void connect(String platformName, String userid, String password) {
+	        this.platformName = platformName;
+	        
+	        // Initialize executor if null
+	        if (this.executor == null) {
+	            this.executor = Executors.newCachedThreadPool();
+	            logger.info("Executor initialized for {}", platformName);
+	        }
+	        
+	        executor.submit(()->{
+	            int attempt = 0;
+	            boolean success = false;
+	            while(attempt < maxAttempts && !isConnected.get()) {
+	                attempt++;
+	                logger.info("Connecting to {}:{} (Attempt {}/{})", 
+	                    host, port, attempt, maxAttempts);
+	                
+	                try {
+	                    socket = new Socket();
+	                    socket.setSoTimeout(connectionTimeout);
+	                    socket.connect(new java.net.InetSocketAddress(host, port), connectionTimeout);
+	                    
+	                    isConnected.set(true);
+	                    success = true;
+	                    logger.info("Successfully connected to {}:{}", host, port);
+	                    
+	                    // Initialize streams
+	                    this.writer = new PrintWriter(socket.getOutputStream(), true);
+	                    this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+	                    isRunning.set(true);
+	                    
+	                    startDataReadingThread();
+	                    break;
+	                    
+	                } catch (IOException e) {
+	                    logger.error("Connection attempt {} failed: {}", attempt, e.getMessage());
+	                    try {
+	                        Thread.sleep(reconnectInterval);
+	                    } catch (InterruptedException ie) {
+	                        Thread.currentThread().interrupt();
+	                        break;
+	                    }
+	                }
+	            }
+	            
+	            if (callback != null) {
 	                callback.onConnect(platformName, success);
 	            }
-			 if(success) {
-				 try {
-					this.writer=new PrintWriter(socket.getOutputStream(),true);
-					this.reader=new BufferedReader(new InputStreamReader(socket.getInputStream()));
-					isRunning.set(true);
-					startDataReadingThread();
-				} catch (IOException e) {
-					logger.error("Failed to initialize streams: {}", e.getMessage());
-				}
-				
-			 }
-
+	            
 	            if (!success) {
-	                logger.error("All connection attempts failed for {}", platformName);
+	                logger.error("Failed to connect after {} attempts", maxAttempts);
 	            }
-		});
-	}
-	private void startDataReadingThread() {
-		executor.submit(()->{
-			String line;
-			try {
-				while(isRunning.get()&&(line=reader.readLine())!=null) {
-					processIncomingData(line);
-				}
-			} catch (IOException e) {
-				 logger.error("Data reading failed: {}", e.getMessage());
-		            isRunning.set(false);
-			}
-		});
-	}
-	
+	        });
+	    }
+	   private void startDataReadingThread() throws IOException {
+    executor.submit(()->{
+        logger.info("Data reading thread started for {}", platformName);
+        String line;
+        try {
+            while(isRunning.get()) {
+                try {
+                    if ((line = reader.readLine()) != null) {
+                        logger.info("Received data: {}", line);
+                        processIncomingData(line);
+                    } else {
+                        logger.warn("Received null line, connection might be closed");
+                        break;
+                    }
+                } catch (Exception e) {
+                    logger.error("Error reading data: {}", e.getMessage());
+                    break;
+                }
+            }
+        } finally {
+            logger.info("Data reading thread stopped for {}", platformName);
+            isRunning.set(false);
+            isConnected.set(false);
+            connect(platformName, "", ""); // Auto-reconnect
+        }
+    });
+}
 	private void processIncomingData(String rawData) {
-		try {
-		String[]parts=rawData.split("\\|");
-		String rateName=parts[0];
-		double bid=0,ask=0;
-		String timestamp="";
-		for(int i=1;i<parts.length;i++) {
-			String[]keyValue=parts[i].split(":");
-			switch(keyValue[1]) {
-			case "number":
-			  if (keyValue[0].equals("22")) bid = Double.parseDouble(keyValue[2]);
-              if (keyValue[0].equals("25")) ask = Double.parseDouble(keyValue[2]);
-              break;
-          case "timestamp":
-              timestamp = keyValue[2];
-              break;
-			}
-			RateFields rateFields=new RateFields(rateName,bid,ask,timestamp);
-			boolean isFirstTime=receivedRates.add(rateName);
-			
-			if(callback!=null) {
-				if(isFirstTime) {
-					Rate rate=new Rate(bid,ask,timestamp);
-					callback.onRateAvailable(platformName,rateName,rate);
-				}else {
-					callback.onRateUpdate(platformName, rateName, rateFields);
-				}
-				
-			}
-		}
-		 } catch (Exception e) {
-		        logger.error("Data parse error: {}", rawData, e);
-		    }
-		
-	}
+    try {
+        logger.info("Received raw data: {}", rawData);
+        
+       
+        // Handle error messages
+        if (rawData.startsWith("ERROR|")) {
+            logger.error("Received error from server: {}", rawData);
+            return;
+        }
+
+        // Process rate data messages
+        String[] parts = rawData.split("\\|");
+        if (parts.length < 4) {
+            logger.error("Invalid data format: {}", rawData);
+            return;
+        }
+
+        String rateName = parts[0];
+        
+        // Skip NaN values
+        if (rawData.contains(":number:NaN")) {
+            logger.warn("Received NaN value for symbol {}, skipping", rateName);
+            return;
+        }
+
+        double bid = 0, ask = 0;
+        String timestamp = Instant.now().toString();
+
+        try {
+            // Parse bid (22:number:1.234567)
+            String[] bidParts = parts[1].split(":");
+            if (bidParts.length >= 3 && bidParts[1].equals("number")) {
+                bid = Double.parseDouble(bidParts[2]);
+            }
+
+            // Parse ask (25:number:1.234568)
+            String[] askParts = parts[2].split(":");
+            if (askParts.length >= 3 && askParts[1].equals("number")) {
+                ask = Double.parseDouble(askParts[2]);
+            }
+
+            // Parse timestamp (5:timestamp:2023-...)
+            String[] timeParts = parts[3].split(":");
+            if (timeParts.length >= 3 && timeParts[1].equals("timestamp")) {
+                timestamp = timeParts[2];
+            }
+            
+            // Validate parsed values
+            if (Double.isNaN(bid) || Double.isNaN(ask)) {
+                logger.warn("Invalid numeric values in data: {}", rawData);
+                return;
+            }
+
+            RateFields rateFields = new RateFields(rateName, bid, ask, timestamp);
+            boolean isFirstTime = receivedRates.add(rateName);
+
+            if (callback != null) {
+                if (isFirstTime) {
+                    Rate rate = new Rate(bid, ask, timestamp);
+                    callback.onRateAvailable(platformName, rateName, rate);
+                } else {
+                	 logger.info("ONRATEUPDATEEEEEEEEEEEEE");
+                    callback.onRateUpdate(platformName, rateName, rateFields);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Parse error in data parts: {}", rawData, e);
+        }
+    } catch (Exception e) {
+        logger.error("Data parse error: {}", rawData, e);
+    }
+}
 
 	@Override
 	public void disConnect(String platformName, String userid, String password) {

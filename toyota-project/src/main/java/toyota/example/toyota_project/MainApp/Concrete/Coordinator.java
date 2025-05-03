@@ -29,11 +29,11 @@ public class Coordinator implements CoordinatorCallBack {
 	private List<DataCollector>collectors=new ArrayList<>();
 	private ExecutorService executor= Executors.newCachedThreadPool();
 	private static final Logger logger = LogManager.getLogger(Coordinator.class);
-	 @Autowired
+	/* @Autowired
 	    private RedisCacheManager redisCacheManager;
 	 @Autowired
 	 private KafkaProducerService kafkaProducerService;
-	 @Autowired
+	 @Autowired*/
 	    private FormulaEngine formulaEngine;
 	 
 	@Override
@@ -71,13 +71,19 @@ public class Coordinator implements CoordinatorCallBack {
 
 	@Override
 	public void initialize() {
-	    
+	    logger.info("Initializing collectors...");
 	    List<CollectorConfig> configs = ConfigLoader.loadCollectorConfigs("src/main/resources/collectors.properties");
 	    
 	    for (CollectorConfig config : configs) {
+	        logger.info("Creating collector for {}", config.getName());
 	        DataCollector collector = createCollector(config);
-	        collectors.add(collector);
-	        executor.submit(() -> collector.connect(config.getName(), config.getUserName(), config.getPassword()));
+	        if (collector != null) {
+	            collectors.add(collector);
+	            executor.submit(() -> {
+	                logger.info("Connecting to {}", config.getName());
+	                collector.connect(config.getName(), config.getUserName(), config.getPassword());
+	            });
+	        }
 	    }
 	}
 
@@ -100,31 +106,27 @@ public class Coordinator implements CoordinatorCallBack {
 	}
 
 	@Override
-	public void onRateAvailable(String platformName, String rateName,Rate rate) {
-		logger.info("New rate available - Platform: {}, Rate: {}, Bid: {}, Ask: {}, Timestamp: {}",
-	            platformName, rateName, rate.getBid(), rate.getAsk(), rate.getTimestamp());
-		RateFields rateFields=new RateFields(rateName,rate.getBid(),rate.getAsk(),rate.getTimestamp());
-		try {
-	        redisCacheManager.put(rateName, rateFields);
-	        logger.debug("Cached in Redis: {}", rateName);
+	public void onRateAvailable(String platformName, String rateName, Rate rate) {
+	    try {
+	    	 RateFields rateFields = new RateFields(
+	    	            rateName,
+	    	            rate.getBid(),
+	    	            rate.getAsk(),
+	    	            rate.getTimestamp() != null && !rate.getTimestamp().isEmpty() 
+	    	                ? rate.getTimestamp() 
+	    	                : Instant.now().toString()
+	    	        );
+	    	 logger.info("ONRATEaVAİLABLE", rate.getBid(),
+	    	            rate.getAsk(),
+	    	            rate.getTimestamp());
+	      // redisCacheManager.put(rateName, rateFields);
+	      //  kafkaProducerService.sendRateMessage(platformName, rateName, rate);
+	        
 	    } catch (Exception e) {
-	        logger.error("Redis cache failed for {}: {}", rateName, e.getMessage());
+	        logger.error("Error processing rate {}: {}", rateName, e.getMessage());
 	    }
-		//kafkaya göndericem
-		 try {
-	            kafkaProducerService.sendRateMessage(platformName, rateName, rate);
-	            logger.info("Sent to Kafka: {}", rateName);
-	        } catch (Exception e) {
-	            logger.error("Failed to send to Kafka: {}", e.getMessage());
-	        }
-		//hesaplamaları yapıcam
-		  if (rateName.startsWith("PF")) {
-	            String baseSymbol = rateName.split("_")[1]; // PF1_USDTRY -> USDTRY
-	            calculateDerivedRate(baseSymbol);
-	        }
-		
 	}
-	private void calculateDerivedRate(String baseSymbol) {
+	/*private void calculateDerivedRate(String baseSymbol) {
 	    try {
 	       
 	        Map<String, RateFields> dependencies = new HashMap<>();
@@ -172,7 +174,7 @@ public class Coordinator implements CoordinatorCallBack {
 	        logger.error("Hesaplama hatası: {}", e.getMessage(), e);
 	    }
 	}
-	@Override
+	/*@Override
 	public void onRateUpdate(String platformName, String rateName,RateFields rateFields) {
 		 try {
 		        
@@ -217,6 +219,12 @@ public class Coordinator implements CoordinatorCallBack {
 		            logger.error("{} hesaplama hatası: {}", symbol, e.getMessage());
 		        }
 		});
+	}
+*/
+	@Override
+	public void onRateUpdate(String platformName, String rateName, RateFields rateFields) {
+		// TODO Auto-generated method stub
+		
 	}
 	
 

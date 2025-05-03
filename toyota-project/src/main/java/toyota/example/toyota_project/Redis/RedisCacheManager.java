@@ -6,15 +6,15 @@ import org.springframework.stereotype.Component;
 
 import toyota.example.toyota_project.Entities.RateFields;
 
-@Component
+//@Component
 public class RedisCacheManager {
-	 private final RedisTemplate<String, RateFields> redisTemplate;
-	    private static final String CACHE_PREFIX = "rates:";
+	private final RedisTemplate<String, RateFields> redisTemplate;
+    private static final String CACHE_PREFIX = "rates:";
 
-	    @Autowired
-	    public RedisCacheManager(RedisTemplate<String, RateFields> redisTemplate) {
-	        this.redisTemplate = redisTemplate;
-	    }
+    @Autowired
+    public RedisCacheManager(RedisTemplate<String, RateFields> rateFieldsRedisTemplate) {
+        this.redisTemplate = rateFieldsRedisTemplate;
+    }
 
 	    public void put(String rateName, RateFields rateFields) {
 	        redisTemplate.opsForValue().set(CACHE_PREFIX + rateName, rateFields);

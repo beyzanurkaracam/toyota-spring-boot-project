@@ -71,7 +71,7 @@ public class ConfigLoader {
     public static List<String> getSubscriptionsForPlatform(String platformName) {
         try {
            
-            Properties props = loadProperties("config/" + platformName + ".properties");
+            Properties props = loadProperties( platformName + ".properties");
             
             
             return Optional.ofNullable(props.getProperty("subscriptions"))

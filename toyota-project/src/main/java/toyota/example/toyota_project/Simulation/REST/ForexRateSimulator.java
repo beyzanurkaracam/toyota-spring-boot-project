@@ -63,26 +63,59 @@ public class ForexRateSimulator {
      marketEnd = LocalTime.parse(marketHoursEnd);
      initializeMarketProperties();
  }
+private void initializeMarketProperties() {
+    // PF1 Platform properties
+    marketProperties.put("PF1_USDTRY", new MarketProperties(
+        0.002,  // baseVolatility
+        0.3,    // trendStrength
+        0.2,    // momentumFactor
+        0.05,   // spread
+        ZoneId.of("Europe/Istanbul")
+    ));
+    
+    marketProperties.put("PF1_EURUSD", new MarketProperties(
+        0.0015,
+        0.25,
+        0.15,
+        0.002,
+        ZoneId.of("Europe/London")
+    ));
 
- private void initializeMarketProperties() {
-     marketProperties.put("PF2_USDTRY", new MarketProperties(
-         0.002,  // Base volatility
-         0.3,    // Trend strength
-         0.2,    // Momentum factor
-         0.01,   // Default spread
-         ZoneId.of("Europe/Istanbul")
-     ));
-     
-     marketProperties.put("PF2_EURUSD", new MarketProperties(
-         0.0015, // Lower base volatility for major pair
-         0.25,   // Trend strength
-         0.15,   // Momentum factor
-         0.0008, // Tighter spread for major pair
-         ZoneId.of("Europe/London")
-     ));
- }
+    marketProperties.put("PF1_GBPUSD", new MarketProperties(
+        0.0018,
+        0.28,
+        0.18,
+        0.003,
+        ZoneId.of("Europe/London")
+    ));
 
+    // PF2 Platform properties
+    marketProperties.put("PF2_USDTRY", new MarketProperties(
+        0.002,  // baseVolatility
+        0.3,    // trendStrength
+        0.2,    // momentumFactor
+        0.01,   // spread
+        ZoneId.of("Europe/Istanbul")
+    ));
+    
+    marketProperties.put("PF2_EURUSD", new MarketProperties(
+        0.0015,
+        0.25,
+        0.15,
+        0.0008,
+        ZoneId.of("Europe/London")
+    ));
+
+    marketProperties.put("PF2_GBPUSD", new MarketProperties(
+        0.0018,
+        0.28,
+        0.18,
+        0.003,
+        ZoneId.of("Europe/London")
+    ));
+}
  public void initializeRate(String symbol, double initialRate) {
+	 
      rateHistories.put(symbol, new RateHistory(
          initialRate,
          initialRate,
@@ -91,7 +124,10 @@ public class ForexRateSimulator {
          0.0
      ));
  }
-
+public void setMarketHours(String start, String end) {
+    this.marketHoursStart = start;
+    this.marketHoursEnd = end;
+}
  public double calculateNextRate(String symbol, double currentRate) {
      RateHistory history = rateHistories.get(symbol);
      MarketProperties props = marketProperties.get(symbol);
