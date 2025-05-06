@@ -1,5 +1,5 @@
 package toyota.example.toyota_project.Simulation.TCP;
-
+import java.util.Locale;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import toyota.example.toyota_project.Simulation.REST.ForexRateSimulator;
@@ -81,13 +81,12 @@ public class TCPServerSimulation {
         String rateKey = "initial.rates." + symbol;
         String spreadKey = "spreads." + symbol;
 
-        double initialRate = Double.parseDouble(config.getProperty(rateKey, "0.0"));
+        double initialRate = Double.parseDouble(config.getProperty(rateKey, "1.0"));
         double spread = Double.parseDouble(config.getProperty(spreadKey, "0.01"));
 
-        // Validate initial rate
-        if (Double.isNaN(initialRate) || initialRate == 0.0) {
+        if (Double.isNaN(initialRate) || initialRate <= 0) {
             logger.warn("Invalid initial rate for {}: {}, using default 1.0", symbol, initialRate);
-            initialRate = 1.0;
+            initialRate = 1.0;  
         }
 
         rates.put(symbol, initialRate);
@@ -199,7 +198,7 @@ public class TCPServerSimulation {
     // Abone olma yanıtını doğru formatta gönder
     double currentBid = rates.get(symbol);
     double spread = spreads.getOrDefault(symbol, 0.01);
-    double currentAsk = currentBid + (currentBid * spread);
+    double currentAsk = currentBid + spread;
     String timestamp = LocalDateTime.now().format(formatter);
     
     String response = String.format(Locale.US, 
@@ -219,14 +218,15 @@ public class TCPServerSimulation {
     if (currentPublications >= maxPublications) {
         return;
     }
-
     for (String symbol : subscribedSymbols) {
         Double currentBid = rates.get(symbol);
-        if (currentBid == null) {
-            LoggingHelper.logError("Rate not found for symbol: {}", symbol);
-            out.println("ERROR|Rate data not found for " + symbol);
-            continue;
+        if (currentBid == null || currentBid <= 0) {
+            LoggingHelper.logError("Invalid current rate for {}", symbol);
+            currentBid = 1.0; 
+            rates.put(symbol, currentBid);
         }
+
+
 
         try {
             double newBid = forexRateSimulator.calculateNextRate(symbol, currentBid);

@@ -6,33 +6,23 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import toyota.example.toyota_project.Entities.RateFields;
-
-//@Configuration
+@Configuration
 public class RedisConfig {
-    
-	//  @Bean
-	    public RedisTemplate<String, RateFields> rateFieldsRedisTemplate(RedisConnectionFactory connectionFactory) {
-	        RedisTemplate<String, RateFields> template = new RedisTemplate<>();
-	        template.setConnectionFactory(connectionFactory);
-	        
-	        template.setKeySerializer(new StringRedisSerializer());
-	        template.setHashKeySerializer(new StringRedisSerializer());
-	        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-	        template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
-	        
-	        template.afterPropertiesSet();
-	        return template;
-	    }
 
-	 //   @Bean
-	    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-	        RedisTemplate<String, Object> template = new RedisTemplate<>();
-	        template.setConnectionFactory(connectionFactory);
-	        template.setKeySerializer(new StringRedisSerializer());
-	        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-	        return template;
-	    }
+    @Bean
+    public RedisTemplate<String, RateFields> rateFieldsRedisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, RateFields> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        
+        // Key ve Value Serializer'ları
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new Jackson2JsonRedisSerializer<>(RateFields.class));
+        
+        template.afterPropertiesSet();
+        return template;
+    }
 }

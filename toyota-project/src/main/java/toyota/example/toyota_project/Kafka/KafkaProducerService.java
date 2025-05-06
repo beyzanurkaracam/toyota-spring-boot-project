@@ -2,18 +2,20 @@ package toyota.example.toyota_project.Kafka;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import toyota.example.toyota_project.Entities.Rate;
 
-//@Service
+@Service
 public class KafkaProducerService {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private static final Logger logger = LogManager.getLogger(KafkaProducerService.class);
     private static final String TOPIC = "toyota-topic";
 
+    @Autowired
     public KafkaProducerService(KafkaTemplate<String, String> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
@@ -24,16 +26,16 @@ public class KafkaProducerService {
     }
 
     private String formatRateMessage(String platformName, String rateName, Rate rate) {
-        return String.format("%s_%s|%.5f|%.5f|%s", 
-                platformName, rateName, rate.getBid(), rate.getAsk(), rate.getTimestamp());
+        return String.format("%s|%.5f|%.5f|%s", 
+                rateName, rate.getBid(), rate.getAsk(), rate.getTimestamp()); // "PF1_USDTRY" formatı
     }
-
     public void sendMessage(String topic, String message) {
         try {
-            kafkaTemplate.send(topic, message);
-            logger.info("Message sent to topic {}: {}", topic, message);
+            logger.info("Kafka'ya mesaj gönderiliyor: {}", message);
+            kafkaTemplate.send(topic, message).get(); // Async işlemi senkron hale getirin
+            logger.info("Mesaj başarıyla gönderildi: {}", message);
         } catch (Exception e) {
-            logger.error("Error sending message to Kafka: {}", e.getMessage());
+            logger.error("HATA: Mesaj gönderilemedi: {}", e.getMessage(), e);
         }
     }
 }

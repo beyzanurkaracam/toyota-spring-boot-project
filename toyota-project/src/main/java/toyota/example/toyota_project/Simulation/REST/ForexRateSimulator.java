@@ -129,6 +129,10 @@ public void setMarketHours(String start, String end) {
     this.marketHoursEnd = end;
 }
  public double calculateNextRate(String symbol, double currentRate) {
+	 if (currentRate <= 0) {
+	        logger.error("Invalid current rate for {}: {}", symbol, currentRate);
+	        return 1.0;  
+	    }
      RateHistory history = rateHistories.get(symbol);
      MarketProperties props = marketProperties.get(symbol);
 
@@ -208,11 +212,10 @@ public void setMarketHours(String start, String end) {
 
      return (shortTermTrend * 0.7 + longTermTrend * 0.3) * props.getTrendStrength();
  }
-
  private double calculateTrend(List<Double> rates) {
-     if (rates.size() < 2) return 0.0;
-     return (rates.get(rates.size() - 1) - rates.get(0)) / rates.get(0);
- }
+	    if (rates.size() < 2 || rates.get(0) == 0) return 0.0;
+	    return (rates.get(rates.size() - 1) - rates.get(0)) / rates.get(0);
+	}
 
  private double calculateVolatilityFactor(RateHistory history, MarketProperties props) {
      double baseVolatility = props.getBaseVolatility();

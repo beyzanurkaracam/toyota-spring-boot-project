@@ -31,7 +31,23 @@ public class ConfigLoader {
     public ConfigLoader(String configFilePath) {
         this.configFilePath = configFilePath;
     }
+    private static final Map<String, List<String>> dependencyMap = new HashMap<>();
 
+    static {
+        try (InputStream inputStream = ConfigLoader.class.getResourceAsStream("/calculation_dependencies.json")) {
+            if (inputStream == null) {
+                throw new RuntimeException("calculation_dependencies.json not found in classpath!");
+            }
+            ObjectMapper mapper = new ObjectMapper();
+            dependencyMap.putAll(mapper.readValue(inputStream, new TypeReference<>() {}));
+        } catch (IOException e) {
+            throw new RuntimeException("Bağımlılık konfigürasyonu yüklenemedi", e);
+        }
+    }
+
+    public static List<String> getDependentSymbols(String baseSymbol) {
+        return dependencyMap.getOrDefault(baseSymbol, new ArrayList<>());
+    }
     public Map<String, Double> loadRates() {
         Map<String, Double> rates = new HashMap<>();
         Properties properties = new Properties();
@@ -147,17 +163,7 @@ public class ConfigLoader {
         
         return configs;
     }
-    public static List<String> getDependentSymbols(String baseSymbol) {
-        
-        try {
-            String json = Files.readString(Path.of("src/main/resources/calculation_dependencies.json"));
-            ObjectMapper mapper = new ObjectMapper();
-            Map<String, List<String>> dependencies = mapper.readValue(json, new TypeReference<>() {});
-            return dependencies.getOrDefault(baseSymbol, new ArrayList<>());
-        } catch (IOException e) {
-            throw new RuntimeException("Bağımlılık konfigürasyonu yüklenemedi", e);
-        }
-    }
+
     private static String getRequiredProperty(Properties props, String key, String configPath) {
         String value = props.getProperty(key);
         if (value == null || value.trim().isEmpty()) {

@@ -29,11 +29,11 @@ public class Coordinator implements CoordinatorCallBack {
 	private List<DataCollector>collectors=new ArrayList<>();
 	private ExecutorService executor= Executors.newCachedThreadPool();
 	private static final Logger logger = LogManager.getLogger(Coordinator.class);
-	/* @Autowired
+	 @Autowired
 	    private RedisCacheManager redisCacheManager;
 	 @Autowired
 	 private KafkaProducerService kafkaProducerService;
-	 @Autowired*/
+	 @Autowired
 	    private FormulaEngine formulaEngine;
 	 
 	@Override
@@ -119,31 +119,70 @@ public class Coordinator implements CoordinatorCallBack {
 	    	 logger.info("ONRATEaVAİLABLE", rate.getBid(),
 	    	            rate.getAsk(),
 	    	            rate.getTimestamp());
-	      // redisCacheManager.put(rateName, rateFields);
-	      //  kafkaProducerService.sendRateMessage(platformName, rateName, rate);
+	      redisCacheManager.put(rateName, rateFields);
+	      kafkaProducerService.sendRateMessage(platformName, rateName, rate);
 	        
 	    } catch (Exception e) {
 	        logger.error("Error processing rate {}: {}", rateName, e.getMessage());
 	    }
 	}
-	/*private void calculateDerivedRate(String baseSymbol) {
+	private void calculateDerivedRate(String baseSymbol) {
 	    try {
 	       
-	        Map<String, RateFields> dependencies = new HashMap<>();
-	        if (baseSymbol.equals("USDTRY")) {
-	            dependencies.put("PF1_USDTRY", redisCacheManager.get("PF1_USDTRY"));
-	            dependencies.put("PF2_USDTRY", redisCacheManager.get("PF2_USDTRY"));
-	        } else if (baseSymbol.equals("EURTRY")) {
-	            dependencies.put("PF1_USDTRY", redisCacheManager.get("PF1_USDTRY"));
-	            dependencies.put("PF2_USDTRY", redisCacheManager.get("PF2_USDTRY"));
-	            dependencies.put("PF1_EURUSD", redisCacheManager.get("PF1_EURUSD"));
-	            dependencies.put("PF2_EURUSD", redisCacheManager.get("PF2_EURUSD"));
-	        }else if (baseSymbol.equals("GBPTRY")) {
-	            dependencies.put("PF1_USDTRY", redisCacheManager.get("PF1_USDTRY"));
-	            dependencies.put("PF2_USDTRY", redisCacheManager.get("PF2_USDTRY"));
-	            dependencies.put("PF1_GBPUSD", redisCacheManager.get("PF1_GBPUSD"));
-	            dependencies.put("PF2_GBPUSD", redisCacheManager.get("PF2_GBPUSD"));
-	        }
+	    	 Map<String, RateFields> dependencies = new HashMap<>();
+	         boolean missingData = false;
+
+	         // USDTRY için bağımlılıklar
+	         if (baseSymbol.equals("USDTRY")) {
+	             RateFields pf1Usdtry = redisCacheManager.get("PF1_USDTRY");
+	             RateFields pf2Usdtry = redisCacheManager.get("PF2_USDTRY");
+	             if (pf1Usdtry == null || pf2Usdtry == null) {
+	                 missingData = true;
+	             } else {
+	                 dependencies.put("PF1_USDTRY", pf1Usdtry);
+	                 dependencies.put("PF2_USDTRY", pf2Usdtry);
+	             }
+
+	         // EURTRY için bağımlılıklar
+	         } else if (baseSymbol.equals("EURTRY")) {
+	             RateFields pf1Usdtry = redisCacheManager.get("PF1_USDTRY");
+	             RateFields pf2Usdtry = redisCacheManager.get("PF2_USDTRY");
+	             RateFields pf1EurUsd = redisCacheManager.get("PF1_EURUSD");
+	             RateFields pf2EurUsd = redisCacheManager.get("PF2_EURUSD");
+
+	             if (pf1Usdtry == null || pf2Usdtry == null || pf1EurUsd == null || pf2EurUsd == null) {
+	                 missingData = true;
+	             } else {
+	                 dependencies.put("PF1_USDTRY", pf1Usdtry);
+	                 dependencies.put("PF2_USDTRY", pf2Usdtry);
+	                 dependencies.put("PF1_EURUSD", pf1EurUsd);
+	                 dependencies.put("PF2_EURUSD", pf2EurUsd);
+	             }
+
+	         // GBPTRY için bağımlılıklar
+	         } else if (baseSymbol.equals("GBPTRY")) {
+	             RateFields pf1Usdtry = redisCacheManager.get("PF1_USDTRY");
+	            RateFields pf2Usdtry = redisCacheManager.get("PF2_USDTRY");
+	             RateFields pf1GbpUsd = redisCacheManager.get("PF1_GBPUSD");
+	             RateFields pf2GbpUsd = redisCacheManager.get("PF2_GBPUSD");
+
+	             if (pf1Usdtry == null || pf2Usdtry == null || pf1GbpUsd == null || pf2GbpUsd == null) {
+	                 missingData = true;
+	             } else {
+	                 dependencies.put("PF1_USDTRY", pf1Usdtry);
+	                 dependencies.put("PF2_USDTRY", pf2Usdtry);
+	                 dependencies.put("PF1_GBPUSD", pf1GbpUsd);
+	                 dependencies.put("PF2_GBPUSD", pf2GbpUsd);
+	             }
+	         }
+
+	         // Eksik veri varsa hesaplama yapma
+	         if (missingData) {
+	             logger.warn("Hesaplama için gereken veriler eksik: {}", baseSymbol);
+	             return;
+	         }
+
+	       
 	       Map<String,Double>results=formulaEngine.calculate(baseSymbol, dependencies);
 	        double calculatedBid = results.get("bid");
 	        double calculatedAsk = results.get("ask");
@@ -174,40 +213,47 @@ public class Coordinator implements CoordinatorCallBack {
 	        logger.error("Hesaplama hatası: {}", e.getMessage(), e);
 	    }
 	}
-	/*@Override
-	public void onRateUpdate(String platformName, String rateName,RateFields rateFields) {
-		 try {
-		        
-		        logger.info("Veri güncellendi - Platform: {}, Sembol: {}, Bid: {}, Ask: {}, Zaman: {}",
-		                platformName, rateName, rateFields.getBid(), rateFields.getAsk(), rateFields.getTimestamp());
+	@Override
+	public void onRateUpdate(String platformName, String rateName, RateFields rateFields) {
+		logger.info("Veri alındı: {}", rateName);
+	    try {
+	        logger.info("Veri güncellendi - Platform: {}, Sembol: {}, Bid: {}, Ask: {}, Zaman: {}",
+	                platformName, rateName, rateFields.getBid(), rateFields.getAsk(), rateFields.getTimestamp());
 
-		        
-		        redisCacheManager.put(rateName, rateFields);
-		        logger.debug("Redis'te güncellendi: {}", rateName);
+	        // Redis'e veriyi kaydet
+	        redisCacheManager.put(rateName, rateFields);
+	        logger.debug("Redis'te güncellendi: {}", rateName);
 
-		       
-		        Rate updatedRate = new Rate(
-		                rateFields.getBid(),
-		                rateFields.getAsk(),
-		                rateFields.getTimestamp()
-		        );
-		        kafkaProducerService.sendRateMessage(platformName, rateName, updatedRate);
-		        logger.info("Kafka'ya güncel veri gönderildi: {}", rateName);
+	        // Kafka'ya güncel veriyi gönder
+	        Rate updatedRate = new Rate(
+	                rateFields.getBid(),
+	                rateFields.getAsk(),
+	                rateFields.getTimestamp()
+	        );
+	        kafkaProducerService.sendRateMessage(platformName, rateName, updatedRate);
+	        logger.info("Kafka'ya güncel veri gönderildi: {}", rateName);
 
-		         if (rateName.startsWith("PF")) {
-		            String baseSymbol = rateName.split("_")[1]; // Örn: PF1_USDTRY -> USDTRY
-		            
-		            
-		            calculateDerivedRate(baseSymbol);
-		            
-		            findAndCalculateDependentRates(baseSymbol);
-		        }
+	        // PF ile başlayan semboller için türev hesapla
+	        if (rateName.startsWith("PF")) {
+	          /*  String currencyPair = rateName.split("_")[1]; // Örn: PF1_GBPUSD → GBPUSD
+	            List<String> targetSymbols = ConfigLoader.getDependentSymbols(currencyPair); // GBPUSD → ["GBPTRY"]
 
-		    } catch (Exception e) {
-		        logger.error("Güncelleme hatası: {}", e.getMessage(), e);
-		    }
+	            if (targetSymbols.isEmpty()) {
+	                logger.warn("{} için tanımlı bağımlı sembol bulunamadı.", currencyPair);
+	                return;
+	            }
+
+	            // Tüm bağımlı sembolleri hesapla
+	            targetSymbols.forEach(targetSymbol -> {
+	                calculateDerivedRate(targetSymbol);
+	                logger.info("{} için türev hesaplama tetiklendi", targetSymbol);
+	            });*/
+	        }
+
+	    } catch (Exception e) {
+	        logger.error("Güncelleme hatası: {}", e.getMessage(), e);
+	    }
 	}
-
 	private void findAndCalculateDependentRates(String baseSymbol) {
 		List<String> dependentSymbols=ConfigLoader.getDependentSymbols(baseSymbol);
 		
@@ -220,12 +266,8 @@ public class Coordinator implements CoordinatorCallBack {
 		        }
 		});
 	}
-*/
-	@Override
-	public void onRateUpdate(String platformName, String rateName, RateFields rateFields) {
-		// TODO Auto-generated method stub
-		
-	}
+
+
 	
 
 	

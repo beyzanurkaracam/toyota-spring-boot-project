@@ -82,7 +82,19 @@
             <version>1.19.3</version>
             <scope>test</scope>
         </dependency>
-
+        <!-- JAVASCRIPT -->
+<dependency>
+    <groupId>org.openjdk.nashorn</groupId>
+    <artifactId>nashorn-core</artifactId>
+    <version>15.4</version>
+</dependency>
+<!-- GROOVY -->
+<dependency>
+    <groupId>org.codehaus.groovy</groupId>
+    <artifactId>groovy-all</artifactId>
+    <version>3.0.13</version> <!-- Güncel versiyonu kontrol edin -->
+    <type>pom</type>
+</dependency>
         <!-- Kafka -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>

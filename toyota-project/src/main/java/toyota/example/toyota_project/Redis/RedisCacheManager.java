@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 import toyota.example.toyota_project.Entities.RateFields;
 
-//@Component
+@Component
 public class RedisCacheManager {
 	private final RedisTemplate<String, RateFields> redisTemplate;
     private static final String CACHE_PREFIX = "rates:";

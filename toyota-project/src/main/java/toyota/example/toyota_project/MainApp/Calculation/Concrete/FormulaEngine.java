@@ -1,6 +1,7 @@
 package toyota.example.toyota_project.MainApp.Calculation.Concrete;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -15,8 +16,10 @@ import javax.script.ScriptException;
 
 import org.apache.logging.log4j.LogManager;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.annotation.PostConstruct;
 import toyota.example.toyota_project.Entities.RateFields;
 import toyota.example.toyota_project.MainApp.Calculation.Abstract.CalculationFormula;
 @Component
@@ -24,21 +27,28 @@ public class FormulaEngine {
 	private static final Logger logger=LogManager.getLogger(FormulaEngine.class);
 	private final Map<String,CalculationRule> calculationRules=new HashMap<>();
 	private final ScriptEngineManager scriptManager=new ScriptEngineManager();
-	
-	 public void initialize() {
-	        try {
-	            String jsonContent = Files.readString(Path.of("src/main/resources/calculation_rules.json"));
-	            ObjectMapper mapper = new ObjectMapper();
-	            calculationRules.putAll(mapper.readValue(jsonContent, new com.fasterxml.jackson.core.type.TypeReference<>() {}));
-	            logger.info("Successfully loaded {} calculation rules", calculationRules.size());
-	        } catch (IOException e) {
-	            logger.error("Failed to load calculation rules: {}", e.getMessage());
-	            throw new RuntimeException("Calculation rules initialization failed", e);
-	        }
-	        
-	        
+	@PostConstruct
+	public void initialize() {
+	    try {
+	        InputStream inputStream = getClass().getResourceAsStream("/calculation_rules.json");
+	        String jsonContent = new String(inputStream.readAllBytes());
+	        ObjectMapper mapper = new ObjectMapper();
+	        calculationRules.putAll(mapper.readValue(jsonContent, new TypeReference<>() {}));
+	        logger.info("Successfully loaded {} calculation rules", calculationRules.size());
+	    } catch (IOException e) {
+	        logger.error("Failed to load calculation rules: {}", e.getMessage());
+	        throw new RuntimeException("Calculation rules initialization failed", e);
 	    }
-	 
+	}
+	 @PostConstruct
+	    public void checkEngines() {
+	        ScriptEngine groovyEngine = scriptManager.getEngineByName("groovy");
+	        if (groovyEngine == null) {
+	            logger.error("Groovy engine NOT FOUND!");
+	        } else {
+	            logger.info("Groovy engine loaded successfully.");
+	        }
+	    }
 	 public Map<String,Double> calculate(String rateName,Map<String,RateFields>dependencies){
 		 CalculationRule rule=calculationRules.get(rateName);
 		 
@@ -68,10 +78,11 @@ public class FormulaEngine {
 	 }
 	 
 	 private Map<String,Double>executeScript(String engineName,String script,Map<String,RateFields>dependencies){
-		 ScriptEngine engine =scriptManager.getEngineByName(engineName);
-		  if (engine == null) {
-	            throw new RuntimeException("Script engine not found: " + engineName);
-	        }
+		 ScriptEngine engine = scriptManager.getEngineByName(engineName);
+		    if (engine == null) {
+		        logger.error("{} engine not found. Available engines: {}", engineName, scriptManager.getEngineFactories());
+		        throw new RuntimeException("Script engine not found: " + engineName);
+		    }
 		  try {
 	            // Bağımlılıkları script'e aktar
 	            dependencies.forEach((key, value) -> {
