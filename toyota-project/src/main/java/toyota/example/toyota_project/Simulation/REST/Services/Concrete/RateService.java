@@ -1,5 +1,6 @@
 package toyota.example.toyota_project.Simulation.REST.Services.Concrete;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -116,7 +117,7 @@ public class RateService extends AbstractRateService {
             rates.put(symbol, newRate);
 
             LoggingHelper.logInfo("Oran güncellendi: {} -> {}", currentRate, newRate);
-            return new RateResponse(symbol, newRate, newAsk, LocalDateTime.now());
+            return new RateResponse(symbol, newRate, newAsk, Instant.now());
 
         } catch (Exception e) {
             LoggingHelper.logError("Oran hesaplama hatası: {}", e, symbol);
@@ -142,7 +143,7 @@ public class RateService extends AbstractRateService {
     private RateResponse createResponse(String symbol, double currentRate) {
         double spread = spreads.getOrDefault(symbol, 0.01);
         double ask = currentRate + (currentRate * spread);
-        return new RateResponse(symbol, currentRate, ask, LocalDateTime.now());
+        return new RateResponse(symbol, currentRate, ask, Instant.now());
     }
 
     private void updateAllRates() {

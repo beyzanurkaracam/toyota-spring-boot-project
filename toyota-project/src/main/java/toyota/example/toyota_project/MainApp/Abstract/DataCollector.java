@@ -8,6 +8,8 @@ public interface DataCollector {
 	void connect(String platformName, String userid, String password);
 
 	String getPlatformName();
+	String getUserId();
+	String getPassword();
 	void disConnect(String platformName, String userid, String password);
 
 	

@@ -31,7 +31,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
         <!-- Spring Boot Test (JUnit 5) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -53,21 +56,12 @@
             <scope>test</scope>
         </dependency>
         <!-- Mockito Core -->
-<dependency>
-    <groupId>org.mockito</groupId>
-    <artifactId>mockito-core</artifactId>
-    <version>${mockito.version}</version>
-    <scope>test</scope>
-</dependency>
-
-<!-- Mockito JUnit 5 entegrasyonu -->
-<dependency>
-    <groupId>org.mockito</groupId>
-    <artifactId>mockito-junit-jupiter</artifactId>
-    <version>${mockito.version}</version>
-    <scope>test</scope>
-</dependency>
-
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <!-- Testcontainers for integration tests -->
         <dependency>
@@ -83,18 +77,18 @@
             <scope>test</scope>
         </dependency>
         <!-- JAVASCRIPT -->
-<dependency>
-    <groupId>org.openjdk.nashorn</groupId>
-    <artifactId>nashorn-core</artifactId>
-    <version>15.4</version>
-</dependency>
-<!-- GROOVY -->
-<dependency>
-    <groupId>org.codehaus.groovy</groupId>
-    <artifactId>groovy-all</artifactId>
-    <version>3.0.13</version> <!-- Güncel versiyonu kontrol edin -->
-    <type>pom</type>
-</dependency>
+        <dependency>
+            <groupId>org.openjdk.nashorn</groupId>
+            <artifactId>nashorn-core</artifactId>
+            <version>15.4</version>
+        </dependency>
+        <!-- GROOVY -->
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy-all</artifactId>
+            <version>3.0.13</version>
+            <type>pom</type>
+        </dependency>
         <!-- Kafka -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>
@@ -133,31 +127,31 @@
             <artifactId>log4j-core</artifactId>
             <version>${log4j2.version}</version>
         </dependency>
-
     </dependencies>
 
     <build>
         <plugins>
-        <plugin>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-maven-plugin</artifactId>
-            <version>${project.parent.version}</version>
-            <configuration>
-                <excludes>
-                    <exclude>
-                        <groupId>org.projectlombok</groupId>
-                        <artifactId>lombok</artifactId>
-                    </exclude>
-                </excludes>
-            </configuration>
-            <executions>
-                <execution>
-                    <goals>
-                        <goal>repackage</goal>
-                    </goals>
-                </execution>
-            </executions>
-        </plugin>
+            <!-- Tek bir spring-boot-maven-plugin tanımı -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${project.parent.version}</version>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -180,18 +174,6 @@
                             <version>1.18.30</version>
                         </path>
                     </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
                 </configuration>
             </plugin>
         </plugins>

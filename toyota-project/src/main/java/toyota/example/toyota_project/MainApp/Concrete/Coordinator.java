@@ -5,6 +5,8 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+
+import jakarta.annotation.PreDestroy;
 import toyota.example.toyota_project.Entities.Rate;
 import toyota.example.toyota_project.Entities.RateFields;
 import toyota.example.toyota_project.Kafka.KafkaProducerService;
@@ -19,6 +21,7 @@ import java.util.concurrent.Executors;
 
 import toyota.example.toyota_project.Config.CollectorConfig;
 import toyota.example.toyota_project.Config.ConfigLoader;
+
 import toyota.example.toyota_project.MainApp.Abstract.CoordinatorCallBack;
 import toyota.example.toyota_project.MainApp.Abstract.DataCollector;
 import toyota.example.toyota_project.MainApp.Calculation.Concrete.FormulaEngine;
@@ -27,7 +30,10 @@ import toyota.example.toyota_project.Redis.RedisCacheManager;
 @Qualifier
 public class Coordinator implements CoordinatorCallBack {
 	private List<DataCollector>collectors=new ArrayList<>();
-	private ExecutorService executor= Executors.newCachedThreadPool();
+	//private ExecutorService executor= Executors.newCachedThreadPool();
+	@Autowired
+	@Qualifier("taskExecutor") 
+    private ExecutorService executor;
 	private static final Logger logger = LogManager.getLogger(Coordinator.class);
 	 @Autowired
 	    private RedisCacheManager redisCacheManager;
@@ -56,6 +62,7 @@ public class Coordinator implements CoordinatorCallBack {
 		}
 	}
 	
+	
 	private DataCollector findCollectorByPlatform(String platformName) {
 		return collectors.stream()
 				.filter(c->c.getPlatformName().equals(platformName))
@@ -65,8 +72,12 @@ public class Coordinator implements CoordinatorCallBack {
 
 	@Override
 	public void onDisConnect(String platformName, Boolean status) {
-		// TODO Auto-generated method stub
-		
+		if(status) {
+			logger.info("Bağlantı başarıyla kesildi: {}", platformName);
+			
+		} else {
+	        logger.error("Bağlantı kesilemedi: {}", platformName);
+	    }
 	}
 
 	@Override
@@ -116,7 +127,7 @@ public class Coordinator implements CoordinatorCallBack {
 	    	                ? rate.getTimestamp() 
 	    	                : Instant.now().toString()
 	    	        );
-	    	 logger.info("ONRATEaVAİLABLE", rate.getBid(),
+	    	 logger.info("ONRATEAVAİLABLE", rate.getBid(),
 	    	            rate.getAsk(),
 	    	            rate.getTimestamp());
 	      redisCacheManager.put(rateName, rateFields);
@@ -176,7 +187,7 @@ public class Coordinator implements CoordinatorCallBack {
 	             }
 	         }
 
-	         // Eksik veri varsa hesaplama yapma
+	         
 	         if (missingData) {
 	             logger.warn("Hesaplama için gereken veriler eksik: {}", baseSymbol);
 	             return;
@@ -228,14 +239,14 @@ public class Coordinator implements CoordinatorCallBack {
 	        Rate updatedRate = new Rate(
 	                rateFields.getBid(),
 	                rateFields.getAsk(),
-	                rateFields.getTimestamp()
+	                Instant.now().toString()
 	        );
 	        kafkaProducerService.sendRateMessage(platformName, rateName, updatedRate);
 	        logger.info("Kafka'ya güncel veri gönderildi: {}", rateName);
 
 	        // PF ile başlayan semboller için türev hesapla
 	        if (rateName.startsWith("PF")) {
-	          /*  String currencyPair = rateName.split("_")[1]; // Örn: PF1_GBPUSD → GBPUSD
+	            String currencyPair = rateName.split("_")[1]; // Örn: PF1_GBPUSD → GBPUSD
 	            List<String> targetSymbols = ConfigLoader.getDependentSymbols(currencyPair); // GBPUSD → ["GBPTRY"]
 
 	            if (targetSymbols.isEmpty()) {
@@ -247,7 +258,7 @@ public class Coordinator implements CoordinatorCallBack {
 	            targetSymbols.forEach(targetSymbol -> {
 	                calculateDerivedRate(targetSymbol);
 	                logger.info("{} için türev hesaplama tetiklendi", targetSymbol);
-	            });*/
+	            });
 	        }
 
 	    } catch (Exception e) {
@@ -268,9 +279,16 @@ public class Coordinator implements CoordinatorCallBack {
 	}
 
 
-	
-
-	
+	@PreDestroy
+	public void cleanup() {
+	    collectors.forEach(collector -> {
+	        collector.disConnect(
+	            collector.getPlatformName(), 
+	            collector.getUserId(), 
+	            collector.getPassword()
+	        );
+	    });
+	}
 	
 
 }

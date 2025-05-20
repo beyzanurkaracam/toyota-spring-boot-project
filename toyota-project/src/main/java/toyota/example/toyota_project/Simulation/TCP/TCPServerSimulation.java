@@ -2,7 +2,6 @@ package toyota.example.toyota_project.Simulation.TCP;
 import java.util.Locale;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import toyota.example.toyota_project.Simulation.REST.ForexRateSimulator;
 
 import toyota.example.toyota_project.Helpers.Logging.LoggingHelper;
 import toyota.example.toyota_project.Helpers.Logging.Exceptions.Tcp.ConnectionException;
@@ -38,7 +37,7 @@ public class TCPServerSimulation {
     private static int maxPublications;
     private static int currentPublications = 0;
     private static TcpDataCollector tcpDataCollector;
-    private static ForexRateSimulator forexRateSimulator;
+    private static TCPForexRateSimulator forexRateSimulator;
 
     public static void main(String[] args) {
         try {
@@ -51,51 +50,39 @@ public class TCPServerSimulation {
         }
     }
 
-   private static void initialize() throws IOException {
-    LoggingHelper.logInfo("Initializing TCP Server Simulation");
-    config.load(TCPServerSimulation.class.getResourceAsStream("/config.properties"));
+    private static void initialize() throws IOException {
+      
+        config.load(TCPServerSimulation.class.getResourceAsStream("/config.properties"));
 
-    publishInterval = Long.parseLong(config.getProperty("publish.interval", "1000"));
-    maxPublications = Integer.parseInt(config.getProperty("max.publications", "1000"));
+       
+        publishInterval = Long.parseLong(config.getProperty("publish.interval", "1000"));
+        if (publishInterval <= 0) throw new IllegalArgumentException("publish.interval must be >0");
+        maxPublications = Integer.parseInt(config.getProperty("max.publications", "5000"));
+        if (maxPublications <= 0) throw new IllegalArgumentException("max.publications must be >0");
 
-    // Get market hours from config
-    String marketStart = config.getProperty("market.hours.start", "09:00");
-    String marketEnd = config.getProperty("market.hours.end", "17:30");
+       
+        rates   = new ConcurrentHashMap<>();
+        spreads = new ConcurrentHashMap<>();
 
-    rates = new ConcurrentHashMap<>();
-    spreads = new ConcurrentHashMap<>();
+        
+        forexRateSimulator = new TCPForexRateSimulator(config);
 
-    forexRateSimulator = new ForexRateSimulator();
-    forexRateSimulator.setMarketHours(marketStart, marketEnd);
-    forexRateSimulator.initialize();
-
-    String[] symbols = config.getProperty("symbols", "").split(",");
-    logger.debug("Loaded symbols: {}", Arrays.toString(symbols));
-    
-    // Validate symbols and initial rates
-    if (symbols == null || symbols.length == 0 || symbols[0].isEmpty()) {
-        throw new IOException("No symbols configured in config.properties");
-    }
-
-    for (String symbol : symbols) {
-        String rateKey = "initial.rates." + symbol;
-        String spreadKey = "spreads." + symbol;
-
-        double initialRate = Double.parseDouble(config.getProperty(rateKey, "1.0"));
-        double spread = Double.parseDouble(config.getProperty(spreadKey, "0.01"));
-
-        if (Double.isNaN(initialRate) || initialRate <= 0) {
-            logger.warn("Invalid initial rate for {}: {}, using default 1.0", symbol, initialRate);
-            initialRate = 1.0;  
+       
+        String[] symbols = config.getProperty("symbols", "").split(",");
+        if (symbols.length==0 || symbols[0].isEmpty())
+            throw new IOException("No symbols in config.properties");
+        for (String s : symbols) {
+            double initRate = Double.parseDouble(config.getProperty("initial.rates."+s, "1.0"));
+            double spr       = Double.parseDouble(config.getProperty("spreads."+s,      "0.01"));
+            rates.put(s, initRate);
+            spreads.put(s, spr);
+            forexRateSimulator.initializeRate(s, initRate);
         }
 
-        rates.put(symbol, initialRate);
-        spreads.put(symbol, spread);
-
-        forexRateSimulator.initializeRate(symbol, initialRate);
-        LoggingHelper.logInfo("Initialized rate for {}: {}, spread: {}", symbol, initialRate, spread);
+        logger.info("Init complete: interval={}ms, maxPub={}, symbols={}",
+            publishInterval, maxPublications, Arrays.toString(symbols));
     }
-}
+
     private static void startServer(int port) {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             LoggingHelper.logInfo("TCP Server started on port {}", port);
@@ -185,29 +172,31 @@ public class TCPServerSimulation {
             throw new TCPServerException("Error processing message: " + message, e);
         }
     }
-  private static void handleSubscribe(String symbol, Set<String> subscribedSymbols, PrintWriter out) {
-    if (!rates.containsKey(symbol)) {
-        LoggingHelper.logWarn("Subscription attempt for unknown symbol: {}", symbol);
-        out.println("ERROR|Rate data not found for " + symbol);
-        return;
-    }
+    private static void handleSubscribe(String symbol, Set<String> subscribedSymbols, PrintWriter out) {
+        if (!rates.containsKey(symbol)) {
+            LoggingHelper.logWarn("Subscription attempt for unknown symbol: {}", symbol);
+            out.println("ERROR|Rate data not found for " + symbol);
+            return;
+        }
 
-    subscribedSymbols.add(symbol);
-    LoggingHelper.logInfo("Client subscribed to symbol: {}", symbol);
-    
-    // Abone olma yanıtını doğru formatta gönder
-    double currentBid = rates.get(symbol);
-    double spread = spreads.getOrDefault(symbol, 0.01);
-    double currentAsk = currentBid + spread;
-    String timestamp = LocalDateTime.now().format(formatter);
-    
-    String response = String.format(Locale.US, 
-        "%s|22:number:%.6f|25:number:%.6f|5:timestamp:%s",
-        symbol, currentBid, currentAsk, timestamp);
-    
-    out.println(response);
-    LoggingHelper.logInfo("Sent subscription confirmation with initial rate: {}", response);
-}
+        subscribedSymbols.add(symbol);
+        LoggingHelper.logInfo("Client subscribed to symbol: {}", symbol);
+        
+        
+        double currentBid = rates.get(symbol);
+        double spread = spreads.getOrDefault(symbol, 0.01);
+       
+        double dynamicSpread = spread * (1 + (Math.random() - 0.5) * 0.3); // ±%30 varyasyon
+        double currentAsk = currentBid * (1 + dynamicSpread);
+        String timestamp = LocalDateTime.now().format(formatter);
+        
+        String response = String.format(Locale.US, 
+            "%s|22:number:%.6f|25:number:%.6f|5:timestamp:%s",
+            symbol, currentBid, currentAsk, timestamp);
+        
+        out.println(response);
+        LoggingHelper.logInfo("Sent subscription confirmation with initial rate: {}", response);
+    }
 
     private static void handleUnsubscribe(String symbol, Set<String> subscribedSymbols, PrintWriter out) {
         subscribedSymbols.remove(symbol);
@@ -215,16 +204,16 @@ public class TCPServerSimulation {
         out.println(symbol);
     }
     private static void sendUpdatedRates(Set<String> subscribedSymbols, PrintWriter out) {
-    if (currentPublications >= maxPublications) {
-        return;
-    }
-    for (String symbol : subscribedSymbols) {
-        Double currentBid = rates.get(symbol);
-        if (currentBid == null || currentBid <= 0) {
-            LoggingHelper.logError("Invalid current rate for {}", symbol);
-            currentBid = 1.0; 
-            rates.put(symbol, currentBid);
+           if (currentPublications >= maxPublications) {
+            return;
         }
+        for (String symbol : subscribedSymbols) {
+            Double currentBid = rates.get(symbol);
+            if (currentBid == null || currentBid <= 0) {
+                LoggingHelper.logError("Invalid rate for {}, resetting to initial value", symbol);
+                currentBid = Double.parseDouble(config.getProperty("initial.rates." + symbol, "1.0"));
+                rates.put(symbol, currentBid);
+            }
 
 
 

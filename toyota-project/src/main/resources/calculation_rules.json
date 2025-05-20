@@ -1,14 +1,18 @@
 {
   "USDTRY": {
     "formulaType": "JAVA",
-    "formula": "toyota.example.calculations.USDTRYFormula"
+    "formula": "toyota.example.toyota_project.MainApp.Calculation.Concrete.UsdTryAverageCalculator"
   },
+  "EURUSD": { "formulaType":"JAVA", 
+  "formula":"toyota.example.toyota_project.MainApp.Calculation.Concrete.EurUsdAverageCalculator" },
+   "GBPUSD": { "formulaType":"JAVA",
+    "formula":"toyota.example.toyota_project.MainApp.Calculation.Concrete.GbpUsdAverageCalculator" },
   "EURTRY": {
     "formulaType": "GROOVY",
-    "formula": "usdmid = ((PF1_USDTRY_bid + PF2_USDTRY_bid)/2 + (PF1_USDTRY_ask + PF2_USDTRY_ask)/2)/2; return usdmid * ((PF1_EURUSD_bid + PF2_EURUSD_bid)/2)"
+    "formula": "usdmid = ((PF1_USDTRY_bid + PF2_USDTRY_bid)/2 + (PF1_USDTRY_ask + PF2_USDTRY_ask)/2)/2; eurMidBid = (PF1_EURUSD_bid + PF2_EURUSD_bid)/2; eurMidAsk = (PF1_EURUSD_ask + PF2_EURUSD_ask)/2; return [bid: usdmid * eurMidBid, ask: usdmid * eurMidAsk];"
   },
   "GBPTRY": {
     "formulaType": "JAVASCRIPT",
-    "formula": "const usdmid = ((PF1_USDTRY_bid + PF2_USDTRY_bid)/2 + (PF1_USDTRY_ask + PF2_USDTRY_ask)/2)/2; return usdmid * ((PF1_GBPUSD_bid + PF2_GBPUSD_bid)/2);"
+    "formula": "var usdmid = ((PF1_USDTRY_bid + PF2_USDTRY_bid)/2 + (PF1_USDTRY_ask + PF2_USDTRY_ask)/2)/2; var gbpMidBid = (PF1_GBPUSD_bid + PF2_GBPUSD_bid)/2; var gbpMidAsk = (PF1_GBPUSD_ask + PF2_GBPUSD_ask)/2; return { bid: usdmid * gbpMidBid, ask: usdmid * gbpMidAsk };"
   }
 }
